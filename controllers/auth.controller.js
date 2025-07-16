@@ -56,3 +56,55 @@ export const signUp = async (req, res) => {
     });
   }
 };
+
+export const signIn = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    console.log(email);
+    console.log(password);
+
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
+    }
+
+    // Check if user exists - explicitly include password field
+    const user = await User.findOne({ email }).select("+password");
+    console.log("user", user);
+
+    if (!user) {
+      return res.status(401).json({ message: "Invalid email" });
+    }
+
+    // Check password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid password" });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
+      expiresIn: JWT_EXPIRES_IN,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "User signed in successfully",
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+        },
+        token,
+      },
+    });
+  } catch (error) {
+    console.error("Error during sign in:", error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || "Server Error",
+    });
+  }
+};
